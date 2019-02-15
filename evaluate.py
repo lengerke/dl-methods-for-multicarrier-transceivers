@@ -3,8 +3,8 @@ import scipy
 import matplotlib as mpl
 import numpy as np
 from custom_functions import generate_data_sparse_fair, make_window_data_sparse, generate_phase, generate_shift, generate_attenuation
-N_test = 10000
-EbN0_dB_range = np.arange(0,8,1)
+N_test = 1000000
+EbN0_dB_range = np.arange(15,20,1)
 EbN0_range = np.power(10,EbN0_dB_range/10)
 EsN0_range  = EbN0_range *  int(np.log2(M)) / symbol_length
 EsN0_dB_range = 10*np.log10(EsN0_range)
@@ -13,8 +13,8 @@ test_input_symbol = generate_data_sparse_fair(N_test,M)
 test_input_symbol = test_input_symbol.astype(np.int)
 test_phase = generate_phase(N_test, random_phase)
 test_shift = generate_shift(N_test, window_size,symbol_length,no_encoder,random_shift=random_shift)
-test_attenuation = generate_attenuation(N_test, window_size,random_attenuation)
-test_window_data = make_window_data_sparse(test_input_symbol, no_encoder)
+test_attenuation = generate_attenuation(N_test, 1,random_attenuation,0.01)#generate_attenuation(N_test, window_size,random_attenuation)
+#test_window_data = make_window_data_sparse(test_input_symbol, no_encoder)
 
 channel_symbols = encoder.predict(np.arange(M))
 
@@ -52,21 +52,21 @@ bpsk = scipy.special.erfc(np.sqrt(EbN0_range))/2
 
 conf_matrix = np.zeros((EbN0_dB_range.size,M,M))
 no_errors = np.zeros((EbN0_dB_range.size,1))
-signal = get_timeshift_channeloutput(test_window_data,channel_symbols,N_test,test_shift,window_size)
+signal = get_timeshift_channeloutput(make_window_data_sparse(test_input_symbol, no_encoder),channel_symbols,N_test,test_shift,window_size)
 signal = add_phase_noise(signal,test_phase,N_test)
 counter=0
 for i in EsN0_dB_range:
     print('testing EsN0 ',i, 'dB')
     channel_output = add_channel_noise(signal, i)
-    channel_output = attenuate(channel_output,test_attenuation)    
-    channel_output = decoder.predict(channel_output)    
+    channel_output = attenuate(channel_output,np.repeat(test_attenuation,window_size,axis=1))
+    channel_output = decoder.predict(channel_output)
     for j in range(channel_output.size):
         conf_matrix[counter,test_input_symbol[j],channel_output[j]] += 1
     no_errors[counter] += N_test-np.sum(np.diag(conf_matrix[counter])).astype(np.int)
     no_errors_byshift=(np.array(np.where(channel_output != test_input_symbol)).squeeze())
     counter += 1
-ser = np.divide(no_errors,(N_test))
-print ('Symbol Error Rate:',ser)
+ser_early = np.divide(no_errors,(N_test))
+print ('Symbol Error Rate:',ser_early)
 #=============plotting===============================
 mpl.use("pgf")
 import matplotlib.pyplot as plt
@@ -85,9 +85,6 @@ pgf_with_rc_fonts = {
     'mathtext.tt': 'monospace',
 }
 mpl.rcParams.update(pgf_with_rc_fonts)
-fig = plt.figure()
-ax = fig.gca()
-plt.grid(True, which="both")
 cmap = [(0, 0.32941176470588235, 0.6235294117647059, 1),           #blue
  (0.8, 0.027450980392156862, 0.11764705882352941, 1),              #red
  (0.3411764705882353, 0.6705882352941176, 0.15294117647058825, 1), #green
@@ -96,19 +93,75 @@ cmap = [(0, 0.32941176470588235, 0.6235294117647059, 1),           #blue
  (0.6313725490196078, 0.06274509803921569, 0.20784313725490197, 1),#burgund
  (0.5568627450980392, 0.7294117647058823, 0.8980392156862745, 1),  #light blue
  (0.8156862745098039, 0.8509803921568627, 0.3607843137254902, 1)]  #light green
+fig = plt.figure()
+ax = fig.gca()
+plt.grid(True, which="both")
+line1, = ax.plot(EbN0_dB_range, ser, color=cmap[0], label='Autoencoder',marker='o')
+line2, = ax.plot(EbN0_dB_range, ser2, color=cmap[1], label='Autoencoder',marker='o',fillstyle='none')
 
-line1, = ax.plot(EbN0_dB_range, ser, color=cmap[0], label='Autoencoder')
-#line2, = ax.plot(EbN0_dB_range, ser_improved, color=cmap[1], label='first and last shitft removed')
-                                                                
+
 plt.legend(handles=[line1])
-#ax.set_xticks(np.arange(-4, 13, 2))
 ax.set_xlabel('$E_b/N_0$ in dB')
 ax.set_ylabel('$P_s$')
 ax.set_yscale('log') 
 ax.autoscale(enable=True, axis='x', tight=True)
 plt.savefig("ser.pdf", bbox_inches='tight')
-plt.savefig("ser.pgf", bbox_inches='tight')
+#===histograms
+shift_hist = np.histogram(test_shift[no_errors_byshift],np.arange(0,31,1))
+phase_hist = np.histogram(test_phase[no_errors_byshift],np.arange(0,2*np.pi+0.1,np.pi/8))
+attenuation_hist = np.histogram(test_attenuation[no_errors_byshift,0],np.arange(0,1.1,0.1))
 
+mpl.use("pgf")
+import matplotlib.pyplot as plt
+pgf_with_rc_fonts = {
+    "font.family": "Latin Modern Roman",
+    "font.serif": [],                   # use latex default serif font    
+    "font.sans-serif": [], # use a specific sans-serif font
+    'mathtext.bf': 'sans:bold',
+    'mathtext.cal': 'cursive',
+    'mathtext.default': 'it',
+    'mathtext.fallback_to_cm': True,
+    'mathtext.fontset': 'custom',
+    'mathtext.it': "Latin Modern Math",
+    'mathtext.rm': "Latin Modern Math",
+    'mathtext.sf': "Latin Modern Math",
+    'mathtext.tt': 'monospace',
+}
+mpl.rcParams.update(pgf_with_rc_fonts)
+cmap = [(0, 0.32941176470588235, 0.6235294117647059, 1),           #blue
+ (0.8, 0.027450980392156862, 0.11764705882352941, 1),              #red
+ (0.3411764705882353, 0.6705882352941176, 0.15294117647058825, 1), #green
+ (0.9647058823529412, 0.6588235294117647, 0.0, 1),                 #orange
+ (0.0, 0.596078431372549, 0.6313725490196078, 1),                  #petrol
+ (0.6313725490196078, 0.06274509803921569, 0.20784313725490197, 1),#burgund
+ (0.5568627450980392, 0.7294117647058823, 0.8980392156862745, 1),  #light blue
+ (0.8156862745098039, 0.8509803921568627, 0.3607843137254902, 1)]  #light green
+fig = plt.figure()
+ax = fig.gca()
+plt.grid(True, which="both")
+ax.bar(shift_hist[1][1:]-symbol_length+1,shift_hist[0], color=cmap[0])
+ax.set_xlabel('offset $m$ in samples')
+ax.set_ylabel('number of errors')
+ax.autoscale(enable=True, axis='x', tight=True)
+plt.savefig("shift_hist.pdf", bbox_inches='tight')
+
+fig = plt.figure()
+ax = fig.gca()
+plt.grid(True, which="both")
+ax.hist(test_attenuation[no_errors_byshift],np.arange(0,1,0.01),color=cmap[0])
+ax.set_xlabel('attenuation')
+ax.set_ylabel('number of errors')
+ax.autoscale(enable=True, axis='x', tight=True)
+plt.savefig("attenuation_hist.pdf", bbox_inches='tight')
+
+fig = plt.figure()
+ax = fig.gca()
+plt.grid(True, which="both")
+ax.bar(phase_hist[1][1:],phase_hist[0], color=cmap[0])
+ax.set_xlabel('phase offset in radians')
+ax.set_ylabel('number of errors')
+ax.autoscale(enable=True, axis='x', tight=True)
+plt.savefig("phase_hist.pdf", bbox_inches='tight')
 #===================confusion matrix=====================
 import itertools
 import matplotlib.pyplot as plt
@@ -151,8 +204,6 @@ plt.figure()
 plot_confusion_matrix(conf_matrix[0], classes=np.arange(M), 
                       title='Normalized confusion matrix')
 plt.savefig("conf.pdf", bbox_inches='tight')
-plt.savefig("conf.pgf", bbox_inches='tight')
-
 #=================fft plot=======================================
 a=np.expand_dims(np.arange(M),1)
 np.random.shuffle(a)
@@ -181,58 +232,3 @@ ax.set_xlabel('$f_g$')
 ax.set_ylabel('Magnitude (dB)')
 #ax.set_yscale('log')
 plt.savefig("FFT.pdf", bbox_inches='tight')
-plt.savefig("FFT.pgf", bbox_inches='tight')
-
-#=======================================signal======
-mpl.use("pgf")
-import matplotlib.pyplot as plt
-pgf_with_rc_fonts = {
-    "font.family": "Latin Modern Roman",
-    "font.serif": [],                   # use latex default serif font    
-    "font.sans-serif": [], # use a specific sans-serif font
-    'mathtext.bf': 'sans:bold',
-    'mathtext.cal': 'cursive',
-    'mathtext.default': 'it',
-    'mathtext.fallback_to_cm': True,
-    'mathtext.fontset': 'custom',
-    'mathtext.it': "Latin Modern Math",
-    'mathtext.rm': "Latin Modern Math",
-    'mathtext.sf': "Latin Modern Math",
-    'mathtext.tt': 'monospace',
-}
-mpl.rcParams.update(pgf_with_rc_fonts)
-cmap = [(0, 0.32941176470588235, 0.6235294117647059, 1),           #blue
- (0.8, 0.027450980392156862, 0.11764705882352941, 1),              #red
- (0.3411764705882353, 0.6705882352941176, 0.15294117647058825, 1), #green
- (0.9647058823529412, 0.6588235294117647, 0.0, 1),                 #orange
- (0.0, 0.596078431372549, 0.6313725490196078, 1),                  #petrol
- (0.6313725490196078, 0.06274509803921569, 0.20784313725490197, 1),#burgund
- (0.5568627450980392, 0.7294117647058823, 0.8980392156862745, 1),  #light blue
- (0.8156862745098039, 0.8509803921568627, 0.3607843137254902, 1)]  #light green
-a=np.array([0,5,0,16,0,150,0])
-oversampling = 2
-b=channel_symbols[a.astype(np.int32),:]
-b=np.reshape(b,(-1))
-z=np.expand_dims(np.arange(a.size*symbol_length),axis=1)
-z=np.append(z,z,axis=1)
-zval=np.linspace(0,a.size*symbol_length,num=oversampling*a.size*symbol_length)
-#real_interpolated = np.interp(zval, z[:,0], b.real)
-#imag_interpolated = np.interp(zval, z[:,1], b.imag)
-tck = scipy.interpolate.splrep(z[:,0], np.real(b), s=0)
-real_interpolated = scipy.interpolate.splev(zval, tck, der=0)
-tck = scipy.interpolate.splrep(z[:,0], np.imag(b), s=0)
-imag_interpolated = scipy.interpolate.splev(zval, tck, der=0)
-
-fig = plt.figure()
-ax = fig.gca()
-plt.grid(False, which="both")
-line1, = ax.plot( real_interpolated[oversampling*a.size:-oversampling*a.size], color=cmap[0], label='Real')
-line3, = ax.plot(np.arange(oversampling-1,(a.size-2)*symbol_length*oversampling+oversampling,oversampling), b[symbol_length:1-symbol_length].real, '.', color=cmap[0])
-line2, = ax.plot( imag_interpolated[oversampling*a.size:-oversampling*a.size], color=cmap[1], label='Imag')
-
-line4, = ax.plot(np.arange(oversampling-1,(a.size-2)*symbol_length*oversampling+oversampling,oversampling), b[symbol_length:1-symbol_length].imag, '.', color=cmap[1])
-plt.legend(handles=[line1, line2])
-ax.autoscale(enable=True, axis='x', tight=True)
-ax.set_ylim([-5,5])
-ax.set_xlabel('time')
-plt.savefig("signal.svg", bbox_inches='tight')

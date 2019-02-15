@@ -8,41 +8,42 @@ from keras import backend as K
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' #prevent warning about not using all available CPU instructions 
 
-# log2(M-1) bits to encode
-M = 256
+M = 128
 # Training dataset size
-N = 5400000
+N = 1200000
 #number of complex samples per symbol
-symbol_length = 8
+symbol_length = 16
 # number of messages simultaneously looked at by the decoder
 no_data_encoders=1 #number of data symbols per preamble symbol
-window_size = 3*symbol_length-1#(no_data_encoders+1)*2-1
+window_size = 3#(no_data_encoders+1)*2-1
 no_encoder = 5#(no_data_encoders+1)*3#window_size*2-1
-paramter_detector_output_width = 10
+paramter_detector_output_width = 5
 decoder_width = 32
 # phase 
 random_phase = True
 # timeshift
 random_shift = True
 random_attenuation = True
-encoded_input = Input(shape=(window_size,),name='input',dtype='complex64')
+
+encoded_input = Input(shape=(symbol_length*window_size,),name='input',dtype='complex64')
 deco_comp2real = Complex2Real()(encoded_input)
 with tf.name_scope('parameterdetector'):
-    detector = Reshape((window_size ,2,))(deco_comp2real)
-    detector = Conv1D(M, kernel_size=3, strides=1, activation='relu')(detector)
+    detector = Reshape((symbol_length*window_size,2,))(deco_comp2real)
+    detector = Conv1D(16, kernel_size=symbol_length, strides=1, activation='relu')(detector)
     detector = MaxPooling1D(pool_size=1, strides=1)(detector)
-    detector = Conv1D(128, kernel_size=2, activation='relu')(detector)
+    detector = Conv1D(64, kernel_size=symbol_length, activation='relu')(detector)
     detector = MaxPooling1D(pool_size=2)(detector)
     detector = Flatten()(detector)
-    detector = Dense(M*4, activation='relu' )(detector)
+    detector = Dense(M*32, activation='relu' )(detector)
     detector = Dense(paramter_detector_output_width, activation='relu')(detector)
 
 with tf.name_scope('decoder'):
     decoder1 = Concatenate(axis=-1)([detector,deco_comp2real])
-    decoder1 = Dense(512, activation='relu')(decoder1)
-    decoder1 = Dense(512, activation='relu')(decoder1)   
-    decoder1 = Dense(256, activation='relu')(decoder1)
-    decoder1 = Dense(256, activation='relu')(decoder1)
+    decoder1 = Dense(symbol_length*window_size*2, activation='relu')(decoder1)
+    decoder1 = Dense(symbol_length*window_size*2, activation='relu')(decoder1)
+    decoder1 = Dense(symbol_length*2, activation='relu')(decoder1)
+    decoder1 = Dense(symbol_length*decoder_width, activation='relu')(decoder1)
+    decoder1 = Dense(int((symbol_length*decoder_width+M)/2), activation='relu')(decoder1)
     decoder1 = Dense(M, activation='relu')(decoder1)
     decoder1 = Dense(M, activation='softmax',name='Decoder_Softmax')(decoder1)
 
