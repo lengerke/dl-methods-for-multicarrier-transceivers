@@ -10,5 +10,6 @@ can be imported into GNURadio for over-the-air transmission using
 The export files of four examplary trained autoencoder can be found 
 [here](https://cloud.ti.rwth-aachen.de/index.php/s/P4bADCELmJKba6N). Their names
 indicate the ratio of transmitted bits per complex baseband samples, for example
-AE-7/16 transmits 7 bits using 16 samples. Our experiments showed that AE-7/16 and
-AE-8/8 perform best.
+AE-7/8 transmits 7 bits using 8 samples. Our experiments showed that AE-7/16 and
+AE-8/8 perform best, both over the air and when evaluated over the channel model 
+they were trained on.
