@@ -24,14 +24,14 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 #training parameters
-epochs = 100
+epochs = 50
 batch_size = 300
 # Training dataset size
-N = 5400000
+N = 2400000
 #number of source symbols, correpsonds to k=log2(M) bits
-M = 256 #8 bits
+M = 128 #7 bits
 #number of complex samples n per symbol
-symbol_length = 8
+symbol_length = 16
 
 #number of data symbols per preamble symbol
 no_data_encoders=1
@@ -43,7 +43,7 @@ no_encoder = 5
 paramter_detector_layer_output_width = 10
 
 #=================Channel settings==================================
-#phase 
+#phase
 random_phase = True
 #timeshift
 random_shift = True
@@ -120,7 +120,7 @@ with tf.name_scope('parameterdetector_layer'):
     detector_layer = Conv1D(M, kernel_size=3,
                             strides=1, activation='relu')(detector_layer)
     detector_layer = MaxPooling1D(pool_size=1, strides=1)(detector_layer)
-    detector_layer = Conv1D(128, kernel_size=2,
+    detector_layer = Conv1D(64, kernel_size=2,
                             activation='relu')(detector_layer)
     detector_layer = MaxPooling1D(pool_size=2)(detector_layer)
     detector_layer = Flatten()(detector_layer)
