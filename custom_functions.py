@@ -69,9 +69,9 @@ def generate_shift(N,window_size,symbol_length, no_encoder, random_shift = True)
         shift = symbol_length*np.ones((N,1)).astype(np.int32)
     return shift
 
-def generate_attenuation(N, window_size,random_attenuation = True):
+def generate_attenuation(N, window_size,random_attenuation = True,a_min=0.001):
     if random_attenuation == True:
-        a = np.random.uniform(low=0.01,high=1.0, size=(N,1)) +1j*np.zeros((N,1))
+        a = np.random.uniform(low=a_min,high=1.0, size=(N,1)) +1j*np.zeros((N,1))
         return np.repeat(a, window_size, axis=1)
     else:
         return np.ones((N,window_size)) +1j*np.zeros((N,window_size))

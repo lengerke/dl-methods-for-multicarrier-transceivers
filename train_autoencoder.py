@@ -27,7 +27,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 epochs = 100
 batch_size = 300
 # Training dataset size
-N = 5400000
+N = 6000000
 #number of source symbols, correpsonds to k=log2(M) bits
 M = 256 #8 bits
 #number of complex samples n per symbol
@@ -49,6 +49,8 @@ random_phase = True
 random_shift = True
 #attenuation
 random_attenuation = True
+#training minimum attenuation
+a_min = 0.001
 #Gaussian noise
 EsN0_dB = 5
 EsN0 = np.power(10,EsN0_dB/10)
@@ -60,7 +62,8 @@ train_phase = generate_phase(N, random_phase = random_phase)
 train_shift = generate_shift(N, window_size,symbol_length,no_encoder,
                              random_shift = random_shift)
 train_attenuation = generate_attenuation(N, window_size,
-                                         random_attenuation = random_attenuation)
+                                         random_attenuation = random_attenuation,
+                                         a_min=a_min)
 #create arrays of 5 symbols to give to the 5 encoders (needed to model time shift)
 window_data = make_window_data_sparse(train_input_symbol, no_encoder)
 
@@ -115,23 +118,9 @@ with tf.name_scope('channel'):
 #Decoder
 #==============================================================================
 deco_comp2real = Complex2Real()(channel_layer)
-with tf.name_scope('parameterdetector_layer'):
-    detector_layer = Reshape((window_size ,2,))(deco_comp2real)
-    detector_layer = Conv1D(M, kernel_size=3,
-                            strides=1, activation='relu')(detector_layer)
-    detector_layer = MaxPooling1D(pool_size=1, strides=1)(detector_layer)
-    detector_layer = Conv1D(128, kernel_size=2,
-                            activation='relu')(detector_layer)
-    detector_layer = MaxPooling1D(pool_size=2)(detector_layer)
-    detector_layer = Flatten()(detector_layer)
-    detector_layer = Dense(M*4, activation='relu' )(detector_layer)
-    detector_layer = Dense(paramter_detector_layer_output_width,
-                           activation='relu')(detector_layer)
 
 with tf.name_scope('decoder'):
-    decoder_layer = Concatenate(axis=-1)([detector_layer,
-                                          deco_comp2real])
-    decoder_layer = Dense(512, activation='relu')(decoder_layer)
+    decoder_layer = Dense(512, activation='relu')(deco_comp2real)
     decoder_layer = Dense(512, activation='relu')(decoder_layer)   
     decoder_layer = Dense(256, activation='relu')(decoder_layer)
     decoder_layer = Dense(256, activation='relu')(decoder_layer)
@@ -170,13 +159,9 @@ history = autoencoder.fit([window_data,
 #Extraction of trained Decoder
 #==============================================================================
 encoded_input = Input(shape=(window_size,),dtype='complex64')
-deco0 = autoencoder.layers[-16](encoded_input)
-deco = autoencoder.layers[-15](deco0)
-for i in range(-14,-7):
-    deco = autoencoder.layers[i](deco)
-deco = autoencoder.layers[-7]([deco,
-                               deco0])
-for i in range(-6,0):
+deco0 = autoencoder.layers[-7](encoded_input)
+deco = autoencoder.layers[-6](deco0)
+for i in range(-5,0):
     deco = autoencoder.layers[i](deco)
 decoder_argmax = ArgMax()(deco)
 decoder = Model(encoded_input,
