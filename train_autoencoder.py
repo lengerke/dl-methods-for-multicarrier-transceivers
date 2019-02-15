@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #Author: Caspar v. Lengerke <caspar.lengerke@rwth-aachen.de>
 #
-#Script to train an autoencoder to transmit 8 bits using 8 complex channel samples.
+#Script to train an autoencoder to transmit 8 bits using 8 complex baseband samples.
 #Between each set of data channel samples, a synchronization symbol of 8 complex 
 #channel samples is utilized. 
 #For training, the channel is modeled by Keras layers, some of which are custom
@@ -118,9 +118,23 @@ with tf.name_scope('channel'):
 #Decoder
 #==============================================================================
 deco_comp2real = Complex2Real()(channel_layer)
+with tf.name_scope('parameterdetector_layer'):
+    detector_layer = Reshape((window_size ,2,))(deco_comp2real)
+    detector_layer = Conv1D(M, kernel_size=3,
+                            strides=1, activation='relu')(detector_layer)
+    detector_layer = MaxPooling1D(pool_size=1, strides=1)(detector_layer)
+    detector_layer = Conv1D(128, kernel_size=2,
+                            activation='relu')(detector_layer)
+    detector_layer = MaxPooling1D(pool_size=2)(detector_layer)
+    detector_layer = Flatten()(detector_layer)
+    detector_layer = Dense(M*4, activation='relu' )(detector_layer)
+    detector_layer = Dense(paramter_detector_layer_output_width,
+                           activation='relu')(detector_layer)
 
 with tf.name_scope('decoder'):
-    decoder_layer = Dense(512, activation='relu')(deco_comp2real)
+    decoder_layer = Concatenate(axis=-1)([detector_layer,
+                                          deco_comp2real])
+    decoder_layer = Dense(512, activation='relu')(decoder_layer)
     decoder_layer = Dense(512, activation='relu')(decoder_layer)   
     decoder_layer = Dense(256, activation='relu')(decoder_layer)
     decoder_layer = Dense(256, activation='relu')(decoder_layer)
@@ -159,9 +173,13 @@ history = autoencoder.fit([window_data,
 #Extraction of trained Decoder
 #==============================================================================
 encoded_input = Input(shape=(window_size,),dtype='complex64')
-deco0 = autoencoder.layers[-7](encoded_input)
-deco = autoencoder.layers[-6](deco0)
-for i in range(-5,0):
+deco0 = autoencoder.layers[-16](encoded_input)
+deco = autoencoder.layers[-15](deco0)
+for i in range(-14,-7):
+    deco = autoencoder.layers[i](deco)
+deco = autoencoder.layers[-7]([deco,
+                               deco0])
+for i in range(-6,0):
     deco = autoencoder.layers[i](deco)
 decoder_argmax = ArgMax()(deco)
 decoder = Model(encoded_input,

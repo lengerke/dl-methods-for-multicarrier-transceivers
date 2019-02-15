@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
+
+#Author: Caspar v. Lengerke <caspar.lengerke@rwth-aachen.de>
+#
+#Script to import a trained encoder and decoder into an iPython session.
 import tensorflow as tf
-from keras.layers import Input, Dense, Embedding, MaxPooling1D, Conv1D, Reshape, Flatten, Concatenate
+from keras.layers import (Input, Dense, Embedding, MaxPooling1D, Conv1D, Reshape,
+                          Flatten, Concatenate)
 from keras.models import Model
 from custom_layers import  Normalize, Real2Complex, Complex2Real,ArgMax
 
@@ -9,22 +14,19 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' #prevent warning about not using all available CPU instructions 
 
 K.clear_session()
-M = 2**8
-# Training dataset size
-N = 6000000
-#number of complex samples per symbol
+#number of source symbols, correpsonds to k=log2(M) bits
+M = 256 #8 bits
+#number of complex samples n per symbol
 symbol_length = 8
-# number of messages simultaneously looked at by the decoder
-no_data_encoders=1 #number of data symbols per preamble symbol
-window_size = 3*symbol_length-1#(no_data_encoders+1)*2-1
-no_encoder = 5#(no_data_encoders+1)*3#window_size*2-1
-paramter_detector_output_width = 128
-decoder_width = 32
-# phase 
-random_phase = True
-# timeshift
-random_shift = True
-random_attenuation = True
+
+#number of data symbols per preamble symbol
+no_data_encoders=1
+#number of complex samples simultaneously looked at by the decoder
+window_size = 3*symbol_length-1
+#number of encoders needed during training to generate samples for all timeshifts
+no_encoder = 5
+#output width of synchronization feature detector_layer sub-network
+paramter_detector_layer_output_width = 10
 
 input_symbol = Input(shape=(1,),name='input', dtype = 'int32')
 with tf.name_scope('encoder'):
@@ -38,19 +40,36 @@ with tf.name_scope('encoder'):
 encoder = Model(input_symbol, to_channel)
 dir = os.path.dirname(os.path.realpath(__file__))
 encoder.load_weights(dir + '/export/keras_weights_encoder.h5')
-
+#==============================================================================
+#Decoder
+#==============================================================================
 encoded_input = Input(shape=(window_size,),name='input',dtype='complex64')
 deco_comp2real = Complex2Real()(encoded_input)
+with tf.name_scope('parameterdetector_layer'):
+    detector_layer = Reshape((window_size ,2,))(deco_comp2real)
+    detector_layer = Conv1D(M, kernel_size=3,
+                            strides=1, activation='relu')(detector_layer)
+    detector_layer = MaxPooling1D(pool_size=1, strides=1)(detector_layer)
+    detector_layer = Conv1D(128, kernel_size=2,
+                            activation='relu')(detector_layer)
+    detector_layer = MaxPooling1D(pool_size=2)(detector_layer)
+    detector_layer = Flatten()(detector_layer)
+    detector_layer = Dense(M*4, activation='relu' )(detector_layer)
+    detector_layer = Dense(paramter_detector_layer_output_width,
+                           activation='relu')(detector_layer)
 
 with tf.name_scope('decoder'):
-    decoder1 = Dense(512, activation='relu')(deco_comp2real)
-    decoder1 = Dense(512, activation='relu')(decoder1)   
-    decoder1 = Dense(M, activation='relu')(decoder1)
-    decoder1 = Dense(M, activation='relu')(decoder1)
-    decoder1 = Dense(M, activation='relu')(decoder1)
-    decoder1 = Dense(M, activation='softmax',name='Decoder_Softmax')(decoder1)
+    decoder_layer = Concatenate(axis=-1)([detector_layer,
+                                          deco_comp2real])
+    decoder_layer = Dense(512, activation='relu')(decoder_layer)
+    decoder_layer = Dense(512, activation='relu')(decoder_layer)   
+    decoder_layer = Dense(256, activation='relu')(decoder_layer)
+    decoder_layer = Dense(256, activation='relu')(decoder_layer)
+    decoder_layer = Dense(M, activation='relu')(decoder_layer)
+    decoder_layer = Dense(M, activation='softmax',
+                          name='Decoder_Softmax')(decoder_layer)
 
-decoder_argmax = ArgMax()(decoder1)
+decoder_argmax = ArgMax()(decoder_layer)
 decoder = Model(encoded_input, decoder_argmax)
 dir = os.path.dirname(os.path.realpath(__file__))
 decoder.load_weights(dir + '/export/keras_weights_decoder.h5')
