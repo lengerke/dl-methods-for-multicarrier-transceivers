@@ -3,6 +3,10 @@
 #Author: Caspar v. Lengerke <caspar.lengerke@rwth-aachen.de>
 #
 #Script to import a trained encoder and decoder into an iPython session.
+#Note that the layers have to be manually be adjusted to fit the structure 
+#defined in the train_autoencoder, as the script will only import the weights 
+#into the structure defined here. If the layout does not match, the import will 
+#fail.
 import tensorflow as tf
 from keras.layers import (Input, Dense, Embedding, MaxPooling1D, Conv1D, Reshape,
                           Flatten, Concatenate)
