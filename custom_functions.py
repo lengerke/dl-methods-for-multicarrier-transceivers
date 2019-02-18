@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+#Author: Caspar v. Lengerke <caspar.lengerke@rwth-aachen.de>
+#Functions to generate data and channel settings to train an autoencoder.
 import numpy as np
 def generate_data(N,M):
     label = np.random.randint(M,size=N).astype(np.int32)

@@ -18,7 +18,7 @@ if 'encoder' not in globals() or 'decoder' not in globals():
 
 generate_plots = True
 save_pdfs = False
-N_test = 1000
+N_test = 1000000
 #number of source symbols, correpsonds to k=log2(M) bits
 M = 256 #8 bits
 #number of complex samples n per symbol

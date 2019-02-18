@@ -29,12 +29,12 @@ batch_size = 300
 # Training dataset size
 N = 6000000
 #number of source symbols, correpsonds to k=log2(M) bits
-M = 256 #8 bits
-#number of complex samples n per symbol
-symbol_length = 8
+M = 256 #8 bits, should usually not exceed 10 bits as training time increases exponentially
+#number of complex baseband samples n per symbol
+symbol_length = 8 #
 
 #number of data symbols per preamble symbol
-no_data_encoders=1
+no_data_encoders=1 #cannot be changed without major reworks of the autoencoder
 #number of complex samples simultaneously looked at by the decoder
 window_size = 3*symbol_length-1
 #number of encoders needed during training to generate samples for all timeshifts
@@ -50,9 +50,9 @@ random_shift = True
 #attenuation
 random_attenuation = True
 #training minimum attenuation
-a_min = 0.001
+a_min = 0.001 #should be lower by a factor 5 to 10 than what the autoencoder has to overcome in inference 
 #Gaussian noise
-EsN0_dB = 5
+EsN0_dB = 5 #Usually in the range between 3 and 10dB, for high SNRs the system doesnt generalize, for low SNRs it doesnt learn to communicate
 EsN0 = np.power(10,EsN0_dB/10)
 EbN0 = EsN0 * symbol_length / int(np.log2(M))
 

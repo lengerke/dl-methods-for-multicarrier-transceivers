@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+
+#The _Merge layer is copied from the Keras framework, as it is not public, but 
+#needed to create custom layers with more than one input tensor.
+#
+#The layer MergeRandomTimeShift only works for a batchsize of 300, but can 
+#easily be adjusted for another fixed batchsize by changing the constant in its
+#definition. 
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras.engine.base_layer import InputSpec
