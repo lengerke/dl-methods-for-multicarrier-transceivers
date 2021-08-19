@@ -5,7 +5,8 @@ were published in the paper [A Deep Learning Wireless Transceiver with Fully
 Learned Modulation and 
 Synchronization](https://ieeexplore.ieee.org/abstract/document/8757051). 
 They allow training and evaluation of autoencoders, that are able to transmit
-data over a wireless channel, using TensorFlow and Keras frameworks. The trained
+data over a wireless channel, using TensorFlow (probably 1.4, 1.5 or 1.6) and 
+the in 2019 still standalone Keras frameworks. The trained
 autoencoder can be imported into GNURadio for over-the-air transmission using 
 [Tensorflow GNURadio Blocks](https://github.com/lengerke/gr-tensorflow_cc).
 
