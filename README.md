@@ -2,11 +2,11 @@
 
 The scripts presented here are part of my Master thesis, the results of which
 were published in the paper [A Deep Learning Wireless Transceiver with Fully
-Learned Modulation and Synchronization]
-(https://ieeexplore.ieee.org/abstract/document/8757051). They allow training 
-and evaluation of autoencoders, that are able to transmit data over a wireless
-channel, using TensorFlow and Keras frameworks. The trained autoencoder 
-can be imported into GNURadio for over-the-air transmission using 
+Learned Modulation and 
+Synchronization](https://ieeexplore.ieee.org/abstract/document/8757051). 
+They allow training and evaluation of autoencoders, that are able to transmit
+data over a wireless channel, using TensorFlow and Keras frameworks. The trained
+autoencoder can be imported into GNURadio for over-the-air transmission using 
 [Tensorflow GNURadio Blocks](https://github.com/johschmitz/gr-tensorflow_cc).
 
 The export files of four examplary trained autoencoder used to be found 
